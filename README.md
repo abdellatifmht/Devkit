@@ -1,25 +1,25 @@
-# Brik
+# Devkit
 
 A single binary to generate projects, create `.env`, initialize Git, and check tools.
 
 ```bash
 go mod tidy          # first time: generates go.sum
-make build           # -> bin/brik
-./bin/brik new     # interactive menu
+make build           # -> bin/devkit
+./bin/devkit new     # interactive menu
 ```
 
 ## Commandes
 
 | Command | Purpose |
 |---|---|
-| `brik new [template]` | Create a project (interactive menu or automation flags) |
-| `brik list` | List templates by category |
-| `brik doctor` | Check git, Docker, Python, Node, Go, and Java and show install commands |
+| `devkit new [template]` | Create a project (interactive menu or automation flags) |
+| `devkit list` | List templates by category |
+| `devkit doctor` | Check git, Docker, Python, Node, Go, and Java and show install commands |
 
 Mode non interactif :
 
 ```bash
-brik new rag --name mon-rag --set vector=qdrant --set llm=ollama --set tools=docker,pytest --yes
+devkit new rag --name mon-rag --set vector=qdrant --set llm=ollama --set tools=docker,pytest --yes
 ```
 
 `rag` is a shortcut for `rag-python` (unambiguous prefix). `--set key=value` answers any manifest question.
@@ -40,17 +40,17 @@ In the interactive menu, `Shift+Tab` goes back to the previous question, includi
 Examples:
 
 ```bash
-brik new agent-python     --name mon-agent --set llm=openai --set tools=mcp,pytest --yes
-brik new mlops-python     --name mon-mlops --set tracking=mlflow --set serving=fastapi --yes
-brik new fastapi-python   --name mon-api   --set db=postgres --set tools=docker,pytest --yes
-brik new nextjs           --name mon-site  --set database=sqlite --set tools=docker,vitest --yes
-brik new spring-boot-react --name mon-app  --set database=postgres --set tools=docker,github-actions --yes
+devkit new agent-python     --name mon-agent --set llm=openai --set tools=mcp,pytest --yes
+devkit new mlops-python     --name mon-mlops --set tracking=mlflow --set serving=fastapi --yes
+devkit new fastapi-python   --name mon-api   --set db=postgres --set tools=docker,pytest --yes
+devkit new nextjs           --name mon-site  --set database=sqlite --set tools=docker,vitest --yes
+devkit new spring-boot-react --name mon-app  --set database=postgres --set tools=docker,github-actions --yes
 ```
 
 ## Architecture
 
 ```
-cmd/brik/            entry point
+cmd/devkit/            entry point
 internal/cli/          Cobra commands (new, list, doctor)
 internal/manifest/     manifest.yaml structure and validation
 internal/answers/      flags / defaults / questions -> template data
