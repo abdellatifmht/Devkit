@@ -1,0 +1,77 @@
+name: API FastAPI (Python)
+description: Typed REST API with configurable persistence and tests
+category: Web
+
+requires:
+  - cmd: python3
+
+questions:
+  - id: db
+    prompt: Persistence
+    type: select
+    default: sqlite
+    options:
+      - { value: none,     label: "In-memory (demo)" }
+      - { value: sqlite,   label: "SQLite (local file)" }
+      - { value: postgres, label: "PostgreSQL (Docker)" }
+
+  - id: tools
+    prompt: Tools to install
+    type: multiselect
+    default: [pytest]
+    options:
+      - { value: docker,         label: "Dockerfile" }
+      - { value: pytest,         label: "pytest + httpx" }
+      - { value: pre-commit,     label: "pre-commit + ruff" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+modules:
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/pytest,         when: '{{ has .tools "pytest" }}' }
+  - { path: modules/pre-commit,     when: '{{ has .tools "pre-commit" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+
+deps:
+  - { name: fastapi }
+  - { name: "uvicorn[standard]" }
+  - { name: pydantic-settings }
+  - { name: python-dotenv }
+  - { name: sqlmodel,        when: '{{ ne .db "none" }}' }
+  - { name: "psycopg[binary]", when: '{{ eq .db "postgres" }}' }
+  - { name: pytest,          dev: true, when: '{{ has .tools "pytest" }}' }
+  - { name: httpx,           dev: true, when: '{{ has .tools "pytest" }}' }
+  - { name: pre-commit,      dev: true, when: '{{ has .tools "pre-commit" }}' }
+  - { name: ruff,            dev: true, when: '{{ has .tools "pre-commit" }}' }
+
+env:
+  - key: DATABASE_URL
+    value: '{{ if eq .db "postgres" }}postgresql+psycopg://app:app@localhost:5432/app{{ else }}sqlite:///./app.db{{ end }}'
+    description: Database connection
+    when: '{{ ne .db "none" }}'
+  - key: API_PORT
+    value: "8000"
+    description: API port
+  - key: APP_ENV
+    value: development
+    description: Runtime environment
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - python3 -m venv .venv && source .venv/bin/activate
+  - pip install -e ".[dev]"
+  - '{{ if eq .db "postgres" }}docker compose up -d{{ end }}'
+  - python -m {{ .project_module }}
+  - curl http://localhost:8000/health

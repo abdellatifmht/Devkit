@@ -1,0 +1,88 @@
+name: MLOps (Python)
+description: Training, experiment tracking, and inference serving
+category: AI
+
+requires:
+  - cmd: python3
+
+questions:
+  - id: tracking
+    prompt: Experiment tracking
+    type: select
+    default: mlflow
+    options:
+      - { value: mlflow, label: "MLflow (serveur local via Docker)" }
+      - { value: none,   label: "None" }
+
+  - id: serving
+    prompt: Model serving
+    type: select
+    default: fastapi
+    options:
+      - { value: fastapi, label: "API FastAPI" }
+      - { value: cli,     label: "CLI only" }
+
+  - id: tools
+    prompt: Tools to install
+    type: multiselect
+    default: [pytest]
+    options:
+      - { value: docker,         label: "Dockerfile" }
+      - { value: pytest,         label: "pytest" }
+      - { value: pre-commit,     label: "pre-commit + ruff" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+modules:
+  - { path: modules/mlflow,         when: '{{ eq .tracking "mlflow" }}' }
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/pytest,         when: '{{ has .tools "pytest" }}' }
+  - { path: modules/pre-commit,     when: '{{ has .tools "pre-commit" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+
+deps:
+  - { name: scikit-learn }
+  - { name: pandas }
+  - { name: joblib }
+  - { name: python-dotenv }
+  - { name: mlflow,          when: '{{ eq .tracking "mlflow" }}' }
+  - { name: fastapi,         when: '{{ eq .serving "fastapi" }}' }
+  - { name: "uvicorn[standard]", when: '{{ eq .serving "fastapi" }}' }
+  - { name: pytest,          dev: true, when: '{{ has .tools "pytest" }}' }
+  - { name: httpx,           dev: true, when: '{{ and (eq .serving "fastapi") (has .tools "pytest") }}' }
+  - { name: pre-commit,      dev: true, when: '{{ has .tools "pre-commit" }}' }
+  - { name: ruff,            dev: true, when: '{{ has .tools "pre-commit" }}' }
+
+env:
+  - key: MODEL_PATH
+    value: models/model.joblib
+    description: Serialized model path
+  - key: MLFLOW_TRACKING_URI
+    value: http://localhost:5000
+    description: MLflow server
+    when: '{{ eq .tracking "mlflow" }}'
+  - key: API_PORT
+    value: "8000"
+    description: FastAPI port
+    when: '{{ eq .serving "fastapi" }}'
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - python3 -m venv .venv && source .venv/bin/activate
+  - pip install -e ".[dev]"
+  - '{{ if eq .tracking "mlflow" }}docker compose up -d mlflow{{ end }}'
+  - python -m {{ .project_module }} train
+  - python -m {{ .project_module }} predict 5.1 3.5 1.4 0.2
+  - '{{ if eq .serving "fastapi" }}python -m {{ .project_module }} serve{{ end }}'

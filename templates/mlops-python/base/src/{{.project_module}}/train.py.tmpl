@@ -1,0 +1,43 @@
+"""Entraîne un modèle de classification et le sauvegarde."""
+from __future__ import annotations
+
+import joblib
+{{- if eq .tracking "mlflow" }}
+import mlflow
+{{- end }}
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+from .config import settings
+from .data import load_dataset
+{{- if eq .tracking "mlflow" }}
+from .tracking import configure
+{{- end }}
+
+
+def train() -> float:
+    X_train, X_test, y_train, y_test = load_dataset()
+    model = RandomForestClassifier(n_estimators=200, random_state=42)
+{{- if eq .tracking "mlflow" }}
+    configure()
+    with mlflow.start_run():
+        model.fit(X_train, y_train)
+        accuracy = float(accuracy_score(y_test, model.predict(X_test)))
+        mlflow.log_params({"n_estimators": 200, "random_state": 42})
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.sklearn.log_model(
+            model,
+            name="model",
+            serialization_format="cloudpickle",
+        )
+{{- else }}
+    model.fit(X_train, y_train)
+    accuracy = float(accuracy_score(y_test, model.predict(X_test)))
+{{- end }}
+    settings.model_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, settings.model_path)
+    return accuracy
+
+
+if __name__ == "__main__":
+    print(f"accuracy={train():.3f}")

@@ -1,0 +1,43 @@
+"""Appel au LLM ({{ .llm }})."""
+{{- if eq .llm "openai" }}
+
+from openai import OpenAI
+{{- else if eq .llm "anthropic" }}
+
+from anthropic import Anthropic
+{{- else }}
+
+import os
+
+import ollama
+{{- end }}
+
+from .config import settings
+
+
+{{ if eq .llm "openai" -}}
+def complete(prompt: str) -> str:
+    client = OpenAI()  # lit OPENAI_API_KEY
+    resp = client.chat.completions.create(
+        model=settings.llm_model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.choices[0].message.content or ""
+{{- else if eq .llm "anthropic" -}}
+def complete(prompt: str) -> str:
+    client = Anthropic()  # lit ANTHROPIC_API_KEY
+    resp = client.messages.create(
+        model=settings.llm_model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.content[0].text
+{{- else -}}
+def complete(prompt: str) -> str:
+    client = ollama.Client(host=os.environ.get("OLLAMA_HOST"))
+    resp = client.chat(
+        model=settings.llm_model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp["message"]["content"]
+{{- end }}

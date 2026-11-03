@@ -1,0 +1,27 @@
+{{- if eq .serving "fastapi" }}
+"""API FastAPI de prédiction Iris."""
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+from .predict import predict
+
+app = FastAPI(title="{{ .project_name }}", version="0.1.0")
+
+
+class PredictRequest(BaseModel):
+    features: list[float] = Field(..., min_length=4, max_length=4)
+
+
+class PredictResponse(BaseModel):
+    prediction: int
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/predict", response_model=PredictResponse)
+def make_prediction(payload: PredictRequest) -> PredictResponse:
+    return PredictResponse(prediction=predict(payload.features))
+{{- end }}

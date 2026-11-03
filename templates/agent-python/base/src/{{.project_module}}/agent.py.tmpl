@@ -1,0 +1,36 @@
+"""Graphe de l'agent."""
+from __future__ import annotations
+
+{{ if eq .memory "memory" -}}
+from langgraph.checkpoint.memory import InMemorySaver
+{{ end -}}
+from langgraph.prebuilt import create_react_agent
+
+from .llm import get_llm
+from .tools import TOOLS
+
+_agent = None
+
+
+def build_agent():
+{{- if eq .memory "memory" }}
+    return create_react_agent(get_llm(), TOOLS, checkpointer=InMemorySaver())
+{{- else }}
+    return create_react_agent(get_llm(), TOOLS)
+{{- end }}
+
+
+def get_agent():
+    global _agent
+    if _agent is None:
+        _agent = build_agent()
+    return _agent
+
+
+def ask(question: str, thread_id: str = "default") -> str:
+    result = get_agent().invoke(
+        {"messages": [("user", question)]},
+        config={"configurable": {"thread_id": thread_id}},
+    )
+    content = result["messages"][-1].content
+    return content if isinstance(content, str) else str(content)

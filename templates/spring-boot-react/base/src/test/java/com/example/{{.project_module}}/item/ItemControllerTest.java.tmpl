@@ -1,0 +1,56 @@
+package com.example.{{ .project_module }}.item;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+class ItemControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ItemRepository repository;
+
+    @Test
+    void createsAndListsItems() throws Exception {
+        mockMvc.perform(post("/api/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"First item\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("First item"));
+
+        mockMvc.perform(get("/api/items"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("First item"));
+    }
+
+    @Test
+    void rejectsBlankNames() throws Exception {
+        mockMvc.perform(post("/api/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"  \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deletesItems() throws Exception {
+        Item item = repository.save(new Item("Temporary"));
+
+        mockMvc.perform(delete("/api/items/" + item.getId()))
+                .andExpect(status().isNoContent());
+    }
+}

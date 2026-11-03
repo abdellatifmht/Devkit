@@ -1,0 +1,65 @@
+name: Spring Boot + React
+description: Spring Boot REST API with a Vite and React frontend
+category: Web
+
+requires:
+  - cmd: java
+  - cmd: node
+
+questions:
+  - id: database
+    prompt: Database
+    type: select
+    default: h2
+    options:
+      - { value: h2,       label: "H2 in-memory (development)" }
+      - { value: postgres, label: "PostgreSQL (Docker Compose)" }
+
+  - id: tools
+    prompt: Tools to include
+    type: multiselect
+    default: [docker]
+    options:
+      - { value: docker,         label: "Dockerfile + Compose app service" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+modules:
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+
+env:
+  - key: SERVER_PORT
+    value: "8080"
+    description: HTTP port for the Spring Boot API
+  - key: SPRING_DATASOURCE_URL
+    value: jdbc:postgresql://localhost:5432/app
+    description: PostgreSQL JDBC URL
+    when: '{{ eq .database "postgres" }}'
+  - key: SPRING_DATASOURCE_USERNAME
+    value: app
+    description: PostgreSQL username
+    when: '{{ eq .database "postgres" }}'
+  - key: SPRING_DATASOURCE_PASSWORD
+    value: app
+    description: PostgreSQL password
+    when: '{{ eq .database "postgres" }}'
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - npm --prefix frontend install
+  - '{{ if eq .database "postgres" }}docker compose up -d db{{ end }}'
+  - mvn spring-boot:run
+  - npm --prefix frontend run dev

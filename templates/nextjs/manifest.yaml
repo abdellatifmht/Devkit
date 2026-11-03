@@ -1,0 +1,59 @@
+name: Next.js (TypeScript)
+description: Next.js App Router starter with TypeScript, Tailwind CSS and optional Prisma
+category: Web
+
+requires:
+  - cmd: node
+
+questions:
+  - id: database
+    prompt: Database
+    type: select
+    default: none
+    options:
+      - { value: none,     label: "None (frontend only)" }
+      - { value: sqlite,   label: "SQLite (Prisma)" }
+      - { value: postgres, label: "PostgreSQL (Prisma)" }
+
+  - id: tools
+    prompt: Tools to include
+    type: multiselect
+    default: [vitest]
+    options:
+      - { value: docker,         label: "Dockerfile" }
+      - { value: vitest,         label: "Vitest" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+modules:
+  - { path: modules/prisma,         when: '{{ ne .database "none" }}' }
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/vitest,         when: '{{ has .tools "vitest" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+
+env:
+  - key: NEXT_PUBLIC_APP_NAME
+    value: '{{ .project_name }}'
+    description: Public application name
+  - key: DATABASE_URL
+    value: '{{ if eq .database "postgres" }}postgresql://app:app@localhost:5432/app?schema=public{{ else }}file:./dev.db{{ end }}'
+    description: Prisma database connection string
+    when: '{{ ne .database "none" }}'
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - npm install
+  - '{{ if ne .database "none" }}npx prisma migrate dev --name init{{ end }}'
+  - npm run dev

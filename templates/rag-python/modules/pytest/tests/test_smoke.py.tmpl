@@ -1,0 +1,6 @@
+from {{ .project_module }}.ingest import chunk
+
+
+def test_chunk_splits_long_text():
+    text = "\n\n".join(["mot " * 100] * 5)
+    assert len(chunk(text, size=500)) > 1

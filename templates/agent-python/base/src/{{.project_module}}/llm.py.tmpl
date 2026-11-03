@@ -1,0 +1,25 @@
+"""Choix du modèle LangChain ({{ .llm }})."""
+{{- if eq .llm "openai" }}
+
+from langchain_openai import ChatOpenAI
+{{- else if eq .llm "anthropic" }}
+
+from langchain_anthropic import ChatAnthropic
+{{- else }}
+
+import os
+
+from langchain_ollama import ChatOllama
+{{- end }}
+
+from .config import settings
+
+
+def get_llm():
+{{- if eq .llm "openai" }}
+    return ChatOpenAI(model=settings.model, temperature=0)
+{{- else if eq .llm "anthropic" }}
+    return ChatAnthropic(model=settings.model, temperature=0, max_tokens=1024)
+{{- else }}
+    return ChatOllama(model=settings.model, base_url=os.getenv("OLLAMA_HOST"), temperature=0)
+{{- end }}

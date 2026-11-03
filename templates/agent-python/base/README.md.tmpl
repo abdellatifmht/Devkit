@@ -1,0 +1,52 @@
+# {{ .project_name }}
+
+Agent LLM généré par [DevKit](https://github.com/abdellatifmht/Brik).
+
+| Brique | Choix |
+|---|---|
+| Framework | LangGraph |
+| LLM | {{ .llm }} |
+| Mémoire | {{ .memory }} |
+{{- if has .tools "mcp" }}
+| Outils | MCP local + calculateur |
+{{- end }}
+
+## Démarrage
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+python -m {{ .project_module }} "Calcule 2 * (3 + 4)."
+```
+
+Configure `.env` (voir `.env.example`) avant de lancer une requête.
+
+## Structure
+
+```
+src/{{ .project_module }}/
+  agent.py    # graphe LangGraph
+  llm.py      # modèle LangChain selon le provider
+  tools.py    # outils locaux (calculateur, compteur de mots)
+  cli.py      # point d'entrée
+{{- if has .tools "mcp" }}
+  mcp_server.py  # serveur MCP d'exemple (stdio)
+  mcp_client.py  # agent connecté au serveur MCP
+{{- end }}
+```
+{{- if has .tools "mcp" }}
+
+## MCP
+
+Le serveur expose un outil `word_count` :
+
+```bash
+python -m {{ .project_module }}.mcp_server
+```
+
+Pour tester le client MCP :
+
+```bash
+python -m {{ .project_module }}.mcp_client
+```
+{{- end }}

@@ -1,0 +1,29 @@
+"""Exemple de client MCP connecté au serveur local."""
+import asyncio
+
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+from .llm import get_llm
+
+
+async def main() -> None:
+    client = MultiServerMCPClient(
+        {
+            "local": {
+                "command": "python",
+                "args": ["-m", "{{ .project_module }}.mcp_server"],
+                "transport": "stdio",
+            }
+        }
+    )
+    tools = await client.get_tools()
+    agent = create_react_agent(get_llm(), tools)
+    result = await agent.ainvoke(
+        {"messages": [("user", "Compte les mots de : bonjour le monde")]}
+    )
+    print(result["messages"][-1].content)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

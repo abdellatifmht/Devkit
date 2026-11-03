@@ -1,0 +1,89 @@
+import { type FormEvent, useEffect, useState } from "react";
+
+import { createItem, deleteItem, listItems, type Item } from "./api";
+
+export default function App() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refresh() {
+    try {
+      setItems(await listItems());
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load items");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = name.trim();
+    if (!value) {
+      return;
+    }
+    await createItem(value);
+    setName("");
+    await refresh();
+  }
+
+  async function handleDelete(id: number) {
+    await deleteItem(id);
+    await refresh();
+  }
+
+  return (
+    <main className="shell">
+      <header className="hero">
+        <p className="eyebrow">Spring Boot + React</p>
+        <h1>{{ .project_name }}</h1>
+        <p className="lede">
+          A typed REST API backed by Spring Boot and a Vite-powered React client.
+        </p>
+      </header>
+
+      <section className="panel">
+        <form className="item-form" onSubmit={handleSubmit}>
+          <label htmlFor="item-name">New item</label>
+          <div className="item-form-row">
+            <input
+              id="item-name"
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Write a name"
+              value={name}
+            />
+            <button type="submit">Add item</button>
+          </div>
+        </form>
+
+        {error ? <p className="error">{error}</p> : null}
+        {loading ? <p className="muted">Loading items...</p> : null}
+
+        {!loading && items.length === 0 ? (
+          <p className="empty">No items yet. Add the first one above.</p>
+        ) : null}
+
+        <ul className="item-list">
+          {items.map((item) => (
+            <li key={item.id}>
+              <div>
+                <strong>{item.name}</strong>
+                <span>{new Date(item.createdAt).toLocaleString("en-US")}</span>
+              </div>
+              <button className="danger" onClick={() => void handleDelete(item.id)} type="button">
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
+  );
+}

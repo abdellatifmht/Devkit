@@ -1,0 +1,111 @@
+name: RAG (Python)
+description: Complete RAG pipeline — ingestion, vector database, and configurable LLM
+category: AI
+
+requires:
+  - cmd: python3
+  - cmd: docker
+    when: '{{ or (has .tools "docker") (eq .vector "qdrant") (eq .vector "pgvector") }}'
+
+questions:
+  - id: vector
+    prompt: Vector database
+    type: select
+    default: qdrant
+    options:
+      - { value: qdrant,   label: "Qdrant (server, via Docker)" }
+      - { value: chroma,   label: "Chroma (embedded, no server)" }
+      - { value: pgvector, label: "pgvector (PostgreSQL, via Docker)" }
+
+  - id: llm
+    prompt: LLM provider
+    type: select
+    default: openai
+    options:
+      - { value: openai,    label: "OpenAI" }
+      - { value: anthropic, label: "Anthropic" }
+      - { value: ollama,    label: "Ollama (local, no API key)" }
+
+  - id: tools
+    prompt: Tools to install
+    type: multiselect
+    default: [pytest]
+    options:
+      - { value: docker,         label: "Dockerfile" }
+      - { value: pytest,         label: "pytest" }
+      - { value: pre-commit,     label: "pre-commit + ruff" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+# Modules: copied over base/ when the condition is true.
+modules:
+  - { path: modules/qdrant,         when: '{{ eq .vector "qdrant" }}' }
+  - { path: modules/pgvector,       when: '{{ eq .vector "pgvector" }}' }
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/pytest,         when: '{{ has .tools "pytest" }}' }
+  - { path: modules/pre-commit,     when: '{{ has .tools "pre-commit" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+
+# Python dependencies (injected into pyproject.toml via {{ .Deps }} / {{ .DevDeps }}).
+deps:
+  - { name: fastembed }
+  - { name: python-dotenv }
+  - { name: qdrant-client,   when: '{{ eq .vector "qdrant" }}' }
+  - { name: chromadb,        when: '{{ eq .vector "chroma" }}' }
+  - { name: "psycopg[binary]", when: '{{ eq .vector "pgvector" }}' }
+  - { name: pgvector,        when: '{{ eq .vector "pgvector" }}' }
+  - { name: numpy,           when: '{{ eq .vector "pgvector" }}' }
+  - { name: openai,          when: '{{ eq .llm "openai" }}' }
+  - { name: anthropic,       when: '{{ eq .llm "anthropic" }}' }
+  - { name: ollama,          when: '{{ eq .llm "ollama" }}' }
+  - { name: pytest,          dev: true, when: '{{ has .tools "pytest" }}' }
+  - { name: pre-commit,      dev: true, when: '{{ has .tools "pre-commit" }}' }
+  - { name: ruff,            dev: true, when: '{{ has .tools "pre-commit" }}' }
+
+# Generate .env and .env.example (secrets remain empty in .env.example).
+env:
+  - key: LLM_MODEL
+    value: '{{ if eq .llm "openai" }}gpt-4o-mini{{ else if eq .llm "anthropic" }}claude-sonnet-4-5{{ else }}llama3.2{{ end }}'
+    description: Model used to generate answers
+  - key: OPENAI_API_KEY
+    secret: true
+    description: OpenAI API key
+    when: '{{ eq .llm "openai" }}'
+  - key: ANTHROPIC_API_KEY
+    secret: true
+    description: Anthropic API key
+    when: '{{ eq .llm "anthropic" }}'
+  - key: OLLAMA_HOST
+    value: http://localhost:11434
+    when: '{{ eq .llm "ollama" }}'
+  - key: COLLECTION_NAME
+    value: '{{ .project_module }}'
+  - key: QDRANT_URL
+    value: http://localhost:6333
+    when: '{{ eq .vector "qdrant" }}'
+  - key: CHROMA_PATH
+    value: ./.chroma
+    when: '{{ eq .vector "chroma" }}'
+  - key: DATABASE_URL
+    value: postgresql://rag:rag@localhost:5432/rag
+    when: '{{ eq .vector "pgvector" }}'
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - python3 -m venv .venv && source .venv/bin/activate
+  - pip install -e ".[dev]"
+  - '{{ if ne .vector "chroma" }}docker compose up -d{{ end }}'
+  - python -m {{ .project_module }}.ingest data
+  - python -m {{ .project_module }}.query "De quoi parle le document ?"

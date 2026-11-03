@@ -1,0 +1,9 @@
+from {{ .project_module }}.tools import calculator, word_count
+
+
+def test_calculator():
+    assert calculator.invoke({"expression": "2 * (3 + 4)"}) == "14.0"
+
+
+def test_word_count():
+    assert word_count.invoke({"text": "bonjour le monde"}) == "3"

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{{ .project_slug }}"
+version = "0.1.0"
+description = "Pipeline RAG généré par devkit"
+requires-python = ">=3.10"
+dependencies = [
+{{- range .Deps }}
+    "{{ . }}",
+{{- end }}
+]
+
+[project.optional-dependencies]
+dev = [
+{{- range .DevDeps }}
+    "{{ . }}",
+{{- end }}
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+{{- if has .tools "pytest" }}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+{{- end }}

@@ -1,0 +1,59 @@
+# {{ .project_name }}
+
+Projet MLOps généré par [DevKit](https://github.com/abdellatifmht/Brik).
+
+| Brique | Choix |
+|---|---|
+| Données | Iris (scikit-learn) |
+| Modèle | RandomForest |
+| Suivi | {{ if eq .tracking "mlflow" }}MLflow{{ else }}aucun{{ end }} |
+| Service | {{ if eq .serving "fastapi" }}API FastAPI{{ else }}CLI{{ end }} |
+
+## Démarrage
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+{{- if eq .tracking "mlflow" }}
+docker compose up -d mlflow
+{{- end }}
+python -m {{ .project_module }} train
+python -m {{ .project_module }} predict 5.1 3.5 1.4 0.2
+```
+
+{{- if eq .tracking "mlflow" }}
+
+L'interface MLflow est disponible sur <http://localhost:5000>.
+
+{{- end }}
+{{- if eq .serving "fastapi" }}
+
+## API
+
+```bash
+python -m {{ .project_module }} serve
+```
+
+- `GET /health`
+- `POST /predict` avec `{"features": [5.1, 3.5, 1.4, 0.2]}`
+- Documentation interactive : <http://localhost:8000/docs>
+
+{{- end }}
+
+## Structure
+
+```
+src/{{ .project_module }}/
+  data.py      # jeu de données et split
+  train.py     # entraînement + sauvegarde
+  predict.py   # chargement du modèle
+  cli.py       # commandes train / predict{{ if eq .serving "fastapi" }} / serve{{ end }}
+{{- if eq .serving "fastapi" }}
+  api.py       # application FastAPI
+{{- end }}
+{{- if eq .tracking "mlflow" }}
+  tracking.py  # configuration MLflow
+{{- end }}
+```
+
+Configure `.env` (voir `.env.example`) avant de lancer un entraînement ou l'API.

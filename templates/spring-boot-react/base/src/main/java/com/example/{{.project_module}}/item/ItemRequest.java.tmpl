@@ -1,0 +1,6 @@
+package com.example.{{ .project_module }}.item;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record ItemRequest(@NotBlank String name) {
+}

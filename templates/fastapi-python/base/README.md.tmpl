@@ -1,0 +1,52 @@
+# {{ .project_name }}
+
+API FastAPI générée par [DevKit](https://github.com/abdellatifmht/Brik).
+
+| Brique | Choix |
+|---|---|
+| Framework | FastAPI |
+| Persistance | {{ if eq .db "none" }}mémoire{{ else }}{{ .db }}{{ end }} |
+| Validation | Pydantic |
+
+## Démarrage
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+{{- if eq .db "postgres" }}
+docker compose up -d
+{{- end }}
+python -m {{ .project_module }}
+```
+
+L'API écoute sur <http://localhost:8000>, la documentation sur <http://localhost:8000/docs>.
+
+## Endpoints
+
+- `GET /health`
+- `GET /items`
+- `POST /items` avec `{"name": "café", "price": 3.5}`
+- `GET /items/{id}`
+- `DELETE /items/{id}`
+
+{{- if has .tools "pytest" }}
+
+## Tests
+
+```bash
+pytest
+```
+{{- end }}
+
+## Structure
+
+```
+src/{{ .project_module }}/
+  config.py      # réglages via .env
+  models.py      # modèles Pydantic / SQLModel
+  repository.py  # accès aux données
+{{- if ne .db "none" }}
+  db.py          # moteur et initialisation
+{{- end }}
+  main.py        # application FastAPI
+```

@@ -1,0 +1,73 @@
+{{- if eq .db "none" }}
+"""Dépôt en mémoire."""
+from __future__ import annotations
+
+from threading import Lock
+
+from .models import Item, ItemCreate
+
+_lock = Lock()
+_items: dict[int, Item] = {}
+_next_id = 1
+
+
+def list_items() -> list[Item]:
+    with _lock:
+        return list(_items.values())
+
+
+def get_item(item_id: int) -> Item | None:
+    with _lock:
+        return _items.get(item_id)
+
+
+def create_item(payload: ItemCreate) -> Item:
+    global _next_id
+    with _lock:
+        item = Item(id=_next_id, **payload.model_dump())
+        _items[_next_id] = item
+        _next_id += 1
+        return item
+
+
+def delete_item(item_id: int) -> bool:
+    with _lock:
+        return _items.pop(item_id, None) is not None
+{{- else }}
+"""Dépôt SQLModel."""
+from __future__ import annotations
+
+from sqlmodel import Session, select
+
+from .db import engine
+from .models import Item, ItemCreate
+
+
+def list_items() -> list[Item]:
+    with Session(engine) as session:
+        return list(session.exec(select(Item)).all())
+
+
+def get_item(item_id: int) -> Item | None:
+    with Session(engine) as session:
+        return session.get(Item, item_id)
+
+
+def create_item(payload: ItemCreate) -> Item:
+    with Session(engine) as session:
+        item = Item(**payload.model_dump())
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return item
+
+
+def delete_item(item_id: int) -> bool:
+    with Session(engine) as session:
+        item = session.get(Item, item_id)
+        if item is None:
+            return False
+        session.delete(item)
+        session.commit()
+        return True
+{{- end }}

@@ -1,0 +1,21 @@
+"""Chargement du modèle et prédiction."""
+from __future__ import annotations
+
+import joblib
+import numpy as np
+
+from .config import settings
+
+
+def load_model():
+    if not settings.model_path.exists():
+        raise FileNotFoundError(
+            f"Modèle introuvable: {settings.model_path}. "
+            "Lance `python -m {{ .project_module }} train`."
+        )
+    return joblib.load(settings.model_path)
+
+
+def predict(features: list[float]) -> int:
+    model = load_model()
+    return int(model.predict(np.asarray([features]))[0])

@@ -1,0 +1,29 @@
+{{- if eq .db "none" }}
+"""Modèles Pydantic (stockage en mémoire)."""
+from pydantic import BaseModel
+
+
+class ItemCreate(BaseModel):
+    name: str
+    price: float
+
+
+class Item(ItemCreate):
+    id: int
+{{- else }}
+"""Modèles SQLModel."""
+from sqlmodel import Field, SQLModel
+
+
+class ItemBase(SQLModel):
+    name: str
+    price: float
+
+
+class Item(ItemBase, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+
+
+class ItemCreate(ItemBase):
+    pass
+{{- end }}

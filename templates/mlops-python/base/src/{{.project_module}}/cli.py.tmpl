@@ -1,0 +1,38 @@
+"""CLI : entraînement, prédiction{{ if eq .serving "fastapi" }} et service{{ end }}."""
+import argparse
+
+from .predict import predict
+from .train import train
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("train", help="Entraîner et sauvegarder le modèle")
+
+    predict_parser = sub.add_parser("predict", help="Prédire une classe Iris")
+    predict_parser.add_argument("features", nargs=4, type=float)
+{{- if eq .serving "fastapi" }}
+
+    sub.add_parser("serve", help="Lancer l'API FastAPI")
+{{- end }}
+
+    args = parser.parse_args()
+    if args.command == "train":
+        print(f"accuracy={train():.3f}")
+    elif args.command == "predict":
+        print(predict(args.features))
+{{- if eq .serving "fastapi" }}
+    else:
+        import uvicorn
+
+        from .api import app
+        from .config import settings
+
+        uvicorn.run(app, host="0.0.0.0", port=settings.api_port)
+{{- end }}
+
+
+if __name__ == "__main__":
+    main()

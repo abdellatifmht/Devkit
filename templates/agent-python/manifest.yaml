@@ -1,0 +1,95 @@
+name: Agent (Python)
+description: LLM agent with tools, LangGraph, and optional MCP
+category: AI
+
+requires:
+  - cmd: python3
+
+questions:
+  - id: llm
+    prompt: LLM provider
+    type: select
+    default: openai
+    options:
+      - { value: openai,    label: "OpenAI" }
+      - { value: anthropic, label: "Anthropic" }
+      - { value: ollama,    label: "Ollama (local, no API key)" }
+
+  - id: memory
+    prompt: Conversation memory
+    type: select
+    default: memory
+    options:
+      - { value: memory, label: "In-memory (InMemorySaver)" }
+      - { value: none,   label: "None (stateless)" }
+
+  - id: tools
+    prompt: Tools to install
+    type: multiselect
+    default: [pytest]
+    options:
+      - { value: docker,         label: "Dockerfile" }
+      - { value: pytest,         label: "pytest" }
+      - { value: pre-commit,     label: "pre-commit + ruff" }
+      - { value: github-actions, label: "GitHub Actions CI" }
+      - { value: mcp,            label: "Example MCP server" }
+
+  - id: git
+    prompt: Initialize a Git repository with an initial commit?
+    type: confirm
+    default: true
+
+modules:
+  - { path: modules/docker,         when: '{{ has .tools "docker" }}' }
+  - { path: modules/pytest,         when: '{{ has .tools "pytest" }}' }
+  - { path: modules/pre-commit,     when: '{{ has .tools "pre-commit" }}' }
+  - { path: modules/github-actions, when: '{{ has .tools "github-actions" }}' }
+  - { path: modules/mcp,            when: '{{ has .tools "mcp" }}' }
+
+deps:
+  - { name: langgraph }
+  - { name: langchain-core }
+  - { name: python-dotenv }
+  - { name: langchain-openai,    when: '{{ eq .llm "openai" }}' }
+  - { name: langchain-anthropic, when: '{{ eq .llm "anthropic" }}' }
+  - { name: langchain-ollama,    when: '{{ eq .llm "ollama" }}' }
+  - { name: "fastmcp<4",            when: '{{ has .tools "mcp" }}' }
+  - { name: "mcp<2",                when: '{{ has .tools "mcp" }}' }
+  - { name: "langchain-mcp-adapters>=0.3.2,<0.4", when: '{{ has .tools "mcp" }}' }
+  - { name: pytest,              dev: true, when: '{{ has .tools "pytest" }}' }
+  - { name: pre-commit,          dev: true, when: '{{ has .tools "pre-commit" }}' }
+  - { name: ruff,                dev: true, when: '{{ has .tools "pre-commit" }}' }
+
+env:
+  - key: AGENT_MODEL
+    value: '{{ if eq .llm "openai" }}gpt-4o-mini{{ else if eq .llm "anthropic" }}claude-sonnet-4-5{{ else }}llama3.2{{ end }}'
+    description: Model used by the agent
+  - key: AGENT_MAX_STEPS
+    value: "8"
+    description: Maximum number of graph iterations
+  - key: OPENAI_API_KEY
+    secret: true
+    description: OpenAI API key
+    when: '{{ eq .llm "openai" }}'
+  - key: ANTHROPIC_API_KEY
+    secret: true
+    description: Anthropic API key
+    when: '{{ eq .llm "anthropic" }}'
+  - key: OLLAMA_HOST
+    value: http://localhost:11434
+    when: '{{ eq .llm "ollama" }}'
+
+post:
+  - description: git init
+    cmd: [git, init, -q]
+    when: '{{ .git }}'
+  - cmd: [git, add, -A]
+    when: '{{ .git }}'
+  - cmd: [git, commit, -q, -m, "chore: initial commit from devkit"]
+    when: '{{ .git }}'
+
+next_steps:
+  - python3 -m venv .venv && source .venv/bin/activate
+  - pip install -e ".[dev]"
+  - python -m {{ .project_module }} "Calculate 2 * (3 + 4), then count the words in 'hello world'."
+  - '{{ if has .tools "mcp" }}python -m {{ .project_module }}.mcp_server{{ end }}'

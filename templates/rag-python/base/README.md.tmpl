@@ -1,0 +1,23 @@
+# {{ .project_name }}
+
+Pipeline RAG généré par [DevKit](https://github.com/abdellatifmht/Brik).
+
+| Brique | Choix |
+|---|---|
+| Base vectorielle | {{ .vector }} |
+| LLM | {{ .llm }} |
+| Embeddings | fastembed (local, multilingue) |
+
+## Démarrage
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+{{- if ne .vector "chroma" }}
+docker compose up -d
+{{- end }}
+python -m {{ .project_module }}.ingest data
+python -m {{ .project_module }}.query "Ta question"
+```
+
+Configure `.env` (voir `.env.example`) avant de lancer une requête.

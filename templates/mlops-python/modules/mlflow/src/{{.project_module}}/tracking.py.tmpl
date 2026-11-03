@@ -1,0 +1,9 @@
+"""Configuration MLflow."""
+import mlflow
+
+from .config import settings
+
+
+def configure() -> None:
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment("{{ .project_slug }}")

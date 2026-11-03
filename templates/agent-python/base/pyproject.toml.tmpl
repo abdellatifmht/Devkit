@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{{ .project_slug }}"
+version = "0.1.0"
+description = "Agent LLM généré par devkit"
+requires-python = ">=3.10"
+dependencies = [
+{{- range .Deps }}
+    "{{ . }}",
+{{- end }}
+]
+
+[project.optional-dependencies]
+dev = [
+{{- range .DevDeps }}
+    "{{ . }}",
+{{- end }}
+]
+
+[project.scripts]
+{{ .project_slug }} = "{{ .project_module }}.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+{{- if has .tools "pytest" }}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+{{- end }}
+{{- if has .tools "pre-commit" }}
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint.isort]
+known-first-party = ["{{ .project_module }}"]
+{{- end }}

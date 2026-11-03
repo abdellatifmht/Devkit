@@ -1,0 +1,101 @@
+"""Accès à la base vectorielle ({{ .vector }})."""
+from __future__ import annotations
+
+import os
+{{- if ne .vector "pgvector" }}
+import uuid
+{{- end }}
+{{- if eq .vector "pgvector" }}
+
+import numpy as np
+import psycopg
+from pgvector.psycopg import register_vector
+{{- else if eq .vector "chroma" }}
+
+import chromadb
+{{- else }}
+
+from qdrant_client import QdrantClient, models
+{{- end }}
+from fastembed import TextEmbedding
+{{- if ne .vector "pgvector" }}
+
+from .config import settings
+{{- end }}
+
+EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBED_DIM = 384
+_embedder: TextEmbedding | None = None
+
+
+def embed(texts: list[str]) -> list[list[float]]:
+    global _embedder
+    if _embedder is None:
+        _embedder = TextEmbedding(EMBED_MODEL)
+    return [v.tolist() for v in _embedder.embed(texts)]
+
+
+{{ if eq .vector "qdrant" -}}
+class VectorStore:
+    def __init__(self) -> None:
+        self.client = QdrantClient(url=os.environ["QDRANT_URL"])
+        if not self.client.collection_exists(settings.collection):
+            self.client.create_collection(
+                settings.collection,
+                vectors_config=models.VectorParams(size=EMBED_DIM, distance=models.Distance.COSINE),
+            )
+
+    def add(self, texts: list[str]) -> None:
+        points = [
+            models.PointStruct(id=str(uuid.uuid4()), vector=vec, payload={"text": text})
+            for text, vec in zip(texts, embed(texts))
+        ]
+        self.client.upsert(settings.collection, points=points)
+
+    def search(self, query: str, k: int) -> list[str]:
+        res = self.client.query_points(settings.collection, query=embed([query])[0], limit=k)
+        return [p.payload["text"] for p in res.points]
+{{- else if eq .vector "chroma" -}}
+class VectorStore:
+    def __init__(self) -> None:
+        client = chromadb.PersistentClient(path=os.environ.get("CHROMA_PATH", ".chroma"))
+        self.col = client.get_or_create_collection(settings.collection, metadata={"hnsw:space": "cosine"})
+
+    def add(self, texts: list[str]) -> None:
+        self.col.add(ids=[str(uuid.uuid4()) for _ in texts], documents=texts, embeddings=embed(texts))
+
+    def search(self, query: str, k: int) -> list[str]:
+        res = self.col.query(query_embeddings=[embed([query])[0]], n_results=k)
+        return res["documents"][0]
+{{- else -}}
+class VectorStore:
+    def __init__(self) -> None:
+        self.dsn = os.environ["DATABASE_URL"]
+        with psycopg.connect(self.dsn, autocommit=True) as conn:
+            conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS documents "
+                f"(id serial PRIMARY KEY, content text NOT NULL, embedding vector({EMBED_DIM}))"
+            )
+
+    def _connect(self) -> psycopg.Connection:
+        conn = psycopg.connect(self.dsn, autocommit=True)
+        register_vector(conn)
+        return conn
+
+    def add(self, texts: list[str]) -> None:
+        with self._connect() as conn:
+            for text, vec in zip(texts, embed(texts)):
+                conn.execute(
+                    "INSERT INTO documents (content, embedding) VALUES (%s, %s)",
+                    (text, np.array(vec)),
+                )
+
+    def search(self, query: str, k: int) -> list[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT content FROM documents ORDER BY embedding <=> %s LIMIT %s",
+                (np.array(embed([query])[0]), k),
+            ).fetchall()
+        return [r[0] for r in rows]
+{{- end }}
