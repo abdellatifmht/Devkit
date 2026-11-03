@@ -83,13 +83,3 @@ templates/rag-python/
 1. Create `templates/<id>/` with `manifest.yaml`, `base/`, and `modules/`.
 2. Add `all:<id>` to the `//go:embed` directive in `templates/embed.go`.
 3. `make test`: the test generates **all combinations** of `select` questions (with and without tools), rejects `<no value>` and unrendered template actions, then checks Python syntax.
-
-## Roadmap
-
-- [x] Interactive `new` + flags, `list`, `doctor`
-- [x] Manifest: conditional questions, modules, dependencies, `.env`, hooks, next steps
-- [x] Templates: RAG, agent (LangGraph/MCP), MLOps, FastAPI, Next.js, Spring Boot + React
-- [ ] Remote templates: `devkit new gh:user/template` (with confirmation before running hooks)
-- [ ] `devkit add <module>` for an existing project
-- [ ] Plugins: `devkit-<name>` executable in PATH as a subcommand
-- [ ] Minimum versions in `doctor` / `requires`
